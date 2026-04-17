@@ -1,0 +1,27 @@
+# Credentials — NEVER commit
+.wechat_publish_env
+*.env
+*.env.local
+.env.keys
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Output
+*.png
+!templates/**/*.png
+*.html
+!templates/**/*.html
+output/
