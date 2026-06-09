@@ -288,11 +288,77 @@ def _theme_minimal() -> dict:
     }
 
 
+def _theme_garden() -> dict:
+    """温暖园丁风 — 适合教育、亲子、散文"""
+    accent = "#b5651d"
+    return {
+        "container": (
+            f"max-width:100%;padding:20px;background:#fdf8f0;"
+            f"font-family:{_FONT_STACK};"
+            f"font-size:16px;line-height:2.0;color:#3d2b1f;word-wrap:break-word;"
+        ),
+        "h1": (
+            "font-size:24px;font-weight:bold;color:#3d2b1f;text-align:center;"
+            "margin:30px 0 10px 0;line-height:1.4;"
+        ),
+        "h2": (
+            "font-size:20px;font-weight:bold;color:#3d2b1f;"
+            f"margin:28px 0 16px 0;padding-left:12px;"
+            f"border-left:3px solid {accent};line-height:1.4;"
+        ),
+        "h3": (
+            "font-size:18px;font-weight:bold;color:#4a3728;"
+            "margin:24px 0 12px 0;line-height:1.4;"
+        ),
+        "h4": (
+            "font-size:16px;font-weight:bold;color:#5a4a3a;"
+            "margin:20px 0 10px 0;line-height:1.4;"
+        ),
+        "p": "margin:0 0 18px 0;line-height:2.0;color:#3d2b1f;",
+        "blockquote": (
+            f"margin:16px 0;padding:15px 20px;background:#f7f0e7;"
+            f"border-left:3px solid {accent};color:#5a4a3a;font-style:normal;"
+            f"line-height:1.8;border-radius:0 6px 6px 0;"
+        ),
+        "blockquote_p": "margin:0 0 8px 0;line-height:1.8;color:#5a4a3a;",
+        "code_block": (
+            f"margin:16px 0;padding:16px;background:#f7f0e7;border-radius:6px;"
+            f"font-family:{_CODE_FONT};font-size:14px;"
+            f"line-height:1.6;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word;"
+            f"color:#3d2b1f;"
+        ),
+        "inline_code": (
+            f"background:#f7f0e7;padding:2px 6px;border-radius:3px;"
+            f"font-family:{_CODE_FONT};"
+            f"font-size:14px;color:{accent};"
+        ),
+        "ul": "margin:0 0 16px 0;padding-left:24px;",
+        "ol": "margin:0 0 16px 0;padding-left:24px;",
+        "li": "margin:0 0 8px 0;line-height:2.0;color:#3d2b1f;",
+        "hr": f"border:none;border-top:1px solid #e0d5c7;margin:30px 0;",
+        "img": "max-width:100%;display:block;margin:20px auto;border-radius:8px;",
+        "a": f"color:{accent};text-decoration:none;",
+        "strong": "font-weight:bold;color:#3d2b1f;",
+        "em": "font-style:italic;color:#5a4a3a;",
+        "table": (
+            "width:100%;border-collapse:collapse;margin:16px 0;"
+            "font-size:14px;line-height:1.6;"
+        ),
+        "th": (
+            f"border:1px solid #e0d5c7;padding:10px 12px;background:#f7f0e7;"
+            f"font-weight:bold;text-align:left;color:#3d2b1f;"
+        ),
+        "td": "border:1px solid #e0d5c7;padding:10px 12px;color:#3d2b1f;",
+        "footnote": "font-size:14px;color:#8a7a6a;margin-top:40px;padding-top:20px;border-top:1px solid #e0d5c7;",
+    }
+
+
 _THEMES = {
     "professional": _theme_professional,
     "sspai": _theme_sspai,
     "github": _theme_github,
     "minimal": _theme_minimal,
+    "garden": _theme_garden,
 }
 
 AVAILABLE_THEMES = list(_THEMES.keys())
