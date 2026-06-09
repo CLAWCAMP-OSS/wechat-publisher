@@ -53,14 +53,20 @@ import urllib.error
 from datetime import datetime
 from pathlib import Path
 
-# Auto-load .env from skill directory
-_skill_env = Path(__file__).resolve().parent.parent / ".env"
-if _skill_env.exists():
-    for line in _skill_env.read_text().splitlines():
+# Auto-load credentials. Priority (first wins via setdefault):
+#   1. ~/.env.keys      — single source of truth for all secrets (Mhao convention)
+#   2. skill .env       — fallback for portability
+def _load_env_file(path: Path):
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             key, _, value = line.partition("=")
             os.environ.setdefault(key.strip(), value.strip())
+
+_load_env_file(Path.home() / ".env.keys")
+_load_env_file(Path(__file__).resolve().parent.parent / ".env")
 
 
 # Proxy for WeChat API requests.
@@ -364,7 +370,7 @@ def remote_publish(ssh_host: str, args: argparse.Namespace):
         remote_args.append(f"--schedule {shlex.quote(args.schedule)}")
     if args.retry > 0:
         remote_args.append(f"--retry {args.retry}")
-        remote_args.append(f"--retry_delay {args.retry_delay}")
+        remote_args.append(f"--retry-delay {args.retry_delay}")
     if args.notify:
         remote_args.append("--notify")
 

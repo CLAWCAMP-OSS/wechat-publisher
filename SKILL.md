@@ -39,6 +39,25 @@ Execute these steps in order. Report progress after each step.
 
 Ask the user: "Do you want me to generate images for this article? (cover image / section illustrations / diagrams)"
 
+**配图密度标准（2026-06-09 Mhao 确认）**：
+
+- **标准档 ≈ 1 张 / 400 字（含封面）**——深度教程/步骤多可上浮到 1/300，纯论述可下沉到 1/500。
+- **硬约束（比字数更重要）**：图必须落在「章节转折 / 概念可视化」点位，**宁缺毋滥**。某段没有值得画的概念，就用引用块或表格做视觉呼吸点，**不塞装饰图凑字数**——gpt-image/Gemini 插画堆太满反而拉低质感、拖慢加载。
+- **封面不进正文**：封面单独留给公众号封面设置，避免正文与封面重复。
+- 落地示例：2660 字文章 → 封面 + 5 张文中图（每章一个概念图），正好踩标准档。
+
+**生成器选择**：默认 Gemini（`GOOGLE_AI_API_KEY`，见下）。也可用 **Codex CLI 生图**（用 Mhao 的 ChatGPT 订阅，效果偏插画）。
+
+**Codex 生图用法 + 4 个 gotcha（2026-06-09 实战沉淀）**：
+
+- **认证**：Codex 的 `~/.codex/auth.json` 是 ChatGPT `tokens` 登录模式即可生图，**不需要 OpenAI API key**（订阅就覆盖生图，API 是单独计费的另一回事——别因为"$20 订阅 ≠ API"就判定不能生图）。
+- **调用**：`codex exec --skip-git-repo-check "Use your image generation tool to create ONE image. Do not write or run any code — call the image generation tool exactly once. Image description: <prompt>. ... No text, no numbers. Square 1:1."`（明确"只调一次工具、别写代码、图里别放文字数字"——gpt-image 渲染中文/数字会糊）。
+- **输出**：图落在 `~/.codex/generated_images/<新 session>/ig_*.png`，每次 exec 建一个新 session 目录。生成后拷进文章目录。
+- ⚠️ **gotcha 1 · 限流**：连发 ~6-7 张后 ChatGPT 订阅生图被节流，codex **挂起 10min+ 不返回**（不是报错，是静默卡死），需冷却 ~30min 才恢复。**批量生图要分批 / 控速**，别一口气连发 7 张以上。
+- ⚠️ **gotcha 2 · 定位新图**：`find -newermt "@epoch"` 在后台脚本上下文**不可靠**（2026-06-09 踩过整批误报 FAIL，图其实都生成了只是没拷出来）——改用 `touch <marker>` + `find -newer <marker>`，或按 session 目录 mtime 排序映射。
+- ⚠️ **gotcha 3 · macOS 无 `timeout`**：用 `gtimeout`（coreutils）或"后台跑 + poll + kill"，别用 `timeout`（command not found，命令直接没跑）。
+- ⚠️ **gotcha 4 · 诊断别丢 `/dev/null`**：调试生图失败时**保留 codex 全输出到日志**，丢 /dev/null 会让你看不到真实失败原因（限流挂起 vs 命令没跑 vs 拷贝逻辑 bug 是三回事，丢输出就全混成"生不出图"）。
+
 If yes:
 
 **For Mermaid diagrams** (flowcharts, sequence diagrams, etc.):
@@ -51,6 +70,7 @@ If yes:
 - Use the script at `${CLAUDE_SKILL_DIR}/scripts/generate_image.py` to generate images via Gemini API
 - Generate appropriate prompts based on the article content
 - Save images to the same directory as the article with descriptive filenames
+- ⚠️ **图必须与 md/HTML 平铺同级 + 用 bare 文件名（不放子目录）**：`--remote` 发布时远程 scp 会把所有文件**平铺**到一个临时目录，HTML 里若是 `images/figN.png` 这种**子目录引用，远程找不到 → 文中图全丢**（2026-06-09 踩过，republish 才修好）。命名用 `<article-slug>-figN.png` 平铺在 md 同级目录，对齐 `published/` 历史文章惯例。
 
 If no images are needed, skip to Step 3.
 
@@ -103,7 +123,16 @@ Only proceed if the user explicitly asks to publish.
 
 Requirements:
 - Environment variables `WECHAT_APP_ID` and `WECHAT_APP_SECRET` must be set
+- 脚本读取顺序：`os.environ` 预设值 > `~/.env.keys` > skill `.env`（凭证唯一真相源是 `~/.env.keys`，2026-06-09 起 skill `.env` 不再存密钥）
 - The script at `${CLAUDE_SKILL_DIR}/scripts/wechat_publish.py` handles the API calls
+
+**⚠️ 换/加公众号 mini-checklist（2026-06-09 切号实战）**——切到新号要齐 4 项再发：
+
+1. **AppID + AppSecret**：微信公众平台「设置与开发 → 基本配置」。写进 `~/.env.keys` 的 `WECHAT_APP_ID` / `WECHAT_APP_SECRET`（旧号改名 `WECHAT_OLD_*` 备份别删）。⚠️ 写密钥别在 bash 命令里内嵌 `KEY=值`（hook 会拦）——用 600 临时文件 + 从文件/env 读（见 `env-keys.md`）。
+2. **IP 白名单**：新号后台「基本配置 → IP白名单」加 **`--remote` 发布服务器的固定出口公网 IP**（即 `ssh <remote-host>` 那台机的公网 IP；本地直连模式则加你本机出口 IP）。不加 → 取 token 报错码 **40164**。
+3. **作者署名**：`--author` 传新号要显示的作者名。
+4. **认证前提**：草稿箱 API **只对已认证订阅号/服务号开放**。个人未认证号没有此接口 → 只能用 `_wechat_inner.html` 手动粘贴 + 手动传图。
+5. ⚠️ **改了 `~/.env.keys` 当前会话不生效**：shell 快照在会话开始时已 source 旧值 → 要么**开新会话**，要么在发布的同一条命令里 `set -a; source ~/.env.keys; set +a` 显式覆盖（见 `env-keys.md` 的 setdefault 陷阱条）。
 
 **默认走远程发布（`--remote dify`）**，本地直连是 fallback。原因：腾讯云 IP 固定且已在白名单，本地 IP 会变、代理不稳定。
 
