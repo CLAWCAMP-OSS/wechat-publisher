@@ -46,12 +46,15 @@ Ask the user: "Do you want me to generate images for this article? (cover image 
 - **封面不进正文**：封面单独留给公众号封面设置，避免正文与封面重复。
 - 落地示例：2660 字文章 → 封面 + 5 张文中图（每章一个概念图），正好踩标准档。
 
-**生成器选择**：默认 Gemini（`GOOGLE_AI_API_KEY`，见下）。也可用 **Codex CLI 生图**（用 Mhao 的 ChatGPT 订阅，效果偏插画）。
+⚠️ **生图前先翻源素材找真实影像（2026-06-21 沉淀）**：如果文章**源自一场演讲/活动/客户交付**，动手画概念图之前，**先去翻那场的 `deliverables/` `images/` 目录**——里面常有真实照片/实拍图/扫描件（如演讲者本人引体/倒立照、客户教材原页），**真实影像 > AI 概念图**，尤其个人亲历叙事篇。这次 C 篇（抗挫）先画了 4 张概念图，Mhao 才提醒 slides 里就有他真实的引体/倒立照——本该先翻。判断：真实照片有隐私顾虑时按 Mhao 拍（背面照零顾虑、正面露脸问一句）。概念图仍用于"没有真实影像的抽象概念"（数据弧线/框架对比）。
+
+**生成器选择**：⚠️ **2026-06-20 起实际默认走 Codex**——当前 `GOOGLE_AI_API_KEY` 账号是免费层，`generate_image.py` 必失败：Imagen 3 报 `400 only available on paid plans`、fallback 的 `gemini-2.5-flash-image` 报 `429 RESOURCE_EXHAUSTED ... limit: 0 FreeTier`（免费层图生成额度=0，不是临时限流，重试无用）。**别浪费一次调用去试 Gemini**，直接用 **Codex CLI 生图**（Mhao 的 ChatGPT 订阅 tokens 模式，效果偏插画，用法+4 gotcha 见下）。日后 Gemini 账号升级付费可恢复 `--style` 那条路径。
 
 **Codex 生图用法 + 4 个 gotcha（2026-06-09 实战沉淀）**：
 
 - **认证**：Codex 的 `~/.codex/auth.json` 是 ChatGPT `tokens` 登录模式即可生图，**不需要 OpenAI API key**（订阅就覆盖生图，API 是单独计费的另一回事——别因为"$20 订阅 ≠ API"就判定不能生图）。
 - **调用**：`codex exec --skip-git-repo-check "Use your image generation tool to create ONE image. Do not write or run any code — call the image generation tool exactly once. Image description: <prompt>. ... No text, no numbers. Square 1:1."`（明确"只调一次工具、别写代码、图里别放文字数字"——gpt-image 渲染中文/数字会糊）。
+- **⭐ img2img / 照片卡通化（2026-06-24 沉淀）**：codex **能**把真实照片当输入做风格转换（不止 text-to-image）——`codex exec --skip-git-repo-check -i <照片路径>` 附带图片，让它的图像工具按这张照片重绘（如卡通化、保住姿势/场景/关键元素、只把脸换成通用卡通脸以规避露脸）。比纯文生图忠实得多。⚠️ **`-i` 是变长参数会吞掉位置参数当图片** → prompt 不能跟在 `-i 文件` 后面当位置参数（会报 "No prompt provided via stdin"）。**正确姿势：prompt 走 stdin** —— `printf '%s' "$PROMPT" | codex exec --skip-git-repo-check -i photo.jpg`。（别再凭旧快照说"Gemini 挂了只能文生图、codex 不能 img2img"——judgment L1：断言外部工具不支持前先 `--help` 查，本条就是没查多绕一轮的产物。）
 - **输出**：图落在 `~/.codex/generated_images/<新 session>/ig_*.png`，每次 exec 建一个新 session 目录。生成后拷进文章目录。
 - ⚠️ **gotcha 1 · 限流**：连发 ~6-7 张后 ChatGPT 订阅生图被节流，codex **挂起 10min+ 不返回**（不是报错，是静默卡死），需冷却 ~30min 才恢复。**批量生图要分批 / 控速**，别一口气连发 7 张以上。
 - ⚠️ **gotcha 2 · 定位新图**：`find -newermt "@epoch"` 在后台脚本上下文**不可靠**（2026-06-09 踩过整批误报 FAIL，图其实都生成了只是没拷出来）——改用 `touch <marker>` + `find -newer <marker>`，或按 session 目录 mtime 排序映射。
@@ -64,6 +67,13 @@ If yes:
 - Identify any text descriptions in the article that would benefit from a diagram
 - Generate Mermaid diagram code
 - Use the script at `${CLAUDE_SKILL_DIR}/scripts/mermaid_to_svg.py` to convert to SVG if mermaid-cli is available, otherwise provide the Mermaid code for manual rendering
+
+**For concept / academic diagrams with Chinese labels**（结构图 / 理论模型图 / 因果链 · 2026-06-11 SDT 图实战沉淀）:
+- ⚠️ **不要走 AI 生图**——gpt-image / Gemini 渲染中文标签必糊，而结构图没有标签就失去信息量
+- 正确路径：**HTML 精确绘制 + playwright 截图**——写固定尺寸 HTML（如 1600×900，inline CSS，配色对齐文章插画风），`chromium.launch()` + `device_scale_factor=2` 截 PNG
+- ⭐ **客户隐私真图（截图 / dashboard / 后台页）→ 不放真图，画占位 mockup（2026-06-26 沉淀）**：文章要配"某客户用 AI 搭的页面"但真图含客户数据 → 让 **codex 按精确 spec 画一张 mockup**（`codex exec -s workspace-write` + prompt 写死：全占位/示例数据、零真实公司名数字、角落标"示意图·示例数据"）。codex 会**自选矢量绘制（SVG/PIL）而非生成式出图**（中文+假数据可控、不糊），还会自我目检、发现 bug 自动重画。文章 caption 同步标"（示意图，非真实数据）"——诚实 + 守隐私红线。⚠️ codex `-s danger-full-access` 会被 Claude 安全分类器拦，用 `workspace-write` 即可（写工作目录足够）。
+- 学术理论图（SDT / 马斯洛等）加注脚 `改绘自 <作者>《<理论>》(<年份>)`——学术诚实
+- 截完删中间 HTML，只留 PNG（平铺 bare 文件名，同下方 figN 惯例）
 
 **For AI-generated images** (cover images, illustrations):
 - The user's Google AI API key should be set as the environment variable `GOOGLE_AI_API_KEY`
@@ -181,6 +191,24 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/wechat_publish.py --cancel-scheduled <media_
 - `--schedule` creates a crontab job that auto-publishes at the specified time and auto-cleans itself after execution
 - The computer must be awake at the scheduled time for crontab to fire
 - Ask the user if they want to schedule when they create a draft
+
+### 拉后台草稿做 diff（Mhao 手改后回收 · 2026-06-24 沉淀）
+
+Mhao 常在公众号后台**逐字手改**草稿后，要"拉下来 vs 本地 md diff、把改动记录 + 沉淀写作 lesson"（A/B/C 三篇都走过这流程）。`wechat_publish.py` **没有 get 功能**，用专门的 `scripts/fetch_draft.py`：
+
+- **关键事实**：编辑草稿**不改 media_id** → 用"创建草稿时返回的 media_id"就能取到"手改后"的内容；`draft/get` 是 `POST {media_id}`，要 IP 白名单 → 在已白名单的远程机跑。
+- ⚠️ **远程没有 `~/.env.keys`（2026-06-26 实测 dify 就没有）→ 别用 `WECHAT_APP_SECRET=$(printf %q ...)` 内嵌进 ssh 命令**：那样 secret 会进本地 shell history + 本地 ssh 进程 argv + **远程 `ps` 的 argv**（命中 env-keys 红线"不进 argv/不被其它进程看见"）。正确姿势=600 临时文件 scp 过去、远程 `source`、用完即删、本地 `shred`：
+- **一条龙**（远程 fetch+textify → 本地 diff，凭证不进 argv）：
+  ```bash
+  SC=/tmp                                   # 或 session scratchpad
+  grep -E '^WECHAT_(APP_ID|APP_SECRET)=' ~/.env.keys > "$SC/wxenv" && chmod 600 "$SC/wxenv"   # grep 写文件、值不回显
+  scp -q ${CLAUDE_SKILL_DIR}/scripts/fetch_draft.py dify:/tmp/fetch_draft.py
+  scp -q "$SC/wxenv" dify:/tmp/wxenv
+  ssh dify 'chmod 600 /tmp/wxenv; set -a; source /tmp/wxenv; set +a; python3 /tmp/fetch_draft.py <MEDIA_ID>; rm -f /tmp/wxenv /tmp/fetch_draft.py' > "$SC/draft_text.txt"
+  shred -u "$SC/wxenv" 2>/dev/null || rm -f "$SC/wxenv"
+  # 本地把 md 去 frontmatter(<!--...-->)/图片(![..])/粗体(**)/分割线 → 段落,再 diff "$SC/draft_text.txt"
+  ```
+- 拿到 diff 后：① 写改动记录(归类) ② 同步 md 到发布版(否则下次 republish 覆盖手改) ③ 跑 /harvest-lessons 沉淀可复用模式。
 
 ## Error Handling
 
